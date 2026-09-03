@@ -1,12 +1,17 @@
+from collections.abc import Awaitable, Callable
 from typing import TypeAlias
 
 
-Jsonprimitive: TypeAlias = str | int|float|bool|None
-
-JSONPayload: TypeAlias =(
-    Jsonprimitive
-    | list['JSONValue']
-    | dict[str, 'JSONValue']
+JSONValue: TypeAlias = (
+    None
+    | bool
+    | int
+    | float
+    | str
+    | list["JSONValue"]
+    | dict[str, "JSONValue"]
 )
 
-JSONValue: TypeAlias = Jsonprimitive | JSONPayload
+JSONPayload: TypeAlias = dict[str, JSONValue]
+
+TaskHandler: TypeAlias = Callable[[JSONPayload], Awaitable[None]]
