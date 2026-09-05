@@ -1,3 +1,4 @@
+import asyncio
 import heapq
 from dataclasses import dataclass, field
 from uuid import UUID
@@ -21,23 +22,32 @@ class TaskScheduler:
     def __init__(self) -> None:
         self._heap: list[_ScheduledTask] = []
         self._sequence = 0
+        self._condition = asyncio.Condition()
 
-    def add(self, task: Task) -> None:
-        """Add a task to the scheduler."""
-        entry = _ScheduledTask(
-            priority=task.priority,
-            sequence=self._sequence,
-            task_id=task.id,
-            task=task,
-        )
+    async def add(self, task: Task) -> None:
+        """Add a task and wake a waiting worker."""
+        async with self._condition:
+            entry = _ScheduledTask(
+                priority=task.priority,
+                sequence=self._sequence,
+                task_id=task.id,
+                task=task,
+            )
 
-        self._sequence += 1
-        heapq.heappush(self._heap, entry)
+            self._sequence += 1
+            heapq.heappush(self._heap, entry)
 
-    def get_next(self) -> Task:
-        """Remove and return the highest-priority task."""
-        entry = heapq.heappop(self._heap)
-        return entry.task
+            self._condition.notify()
+
+    async def get_next(self) -> Task:
+        """Wait for and return the highest-priority task."""
+        async with self._condition:
+            await self._condition.wait_for(
+                lambda: bool(self._heap)
+            )
+
+            entry = heapq.heappop(self._heap)
+            return entry.task
 
     def __len__(self) -> int:
         """Return the number of scheduled tasks."""

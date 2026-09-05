@@ -1,3 +1,7 @@
+import asyncio
+
+import pytest
+
 from async_task_queue.queue.scheduler import TaskScheduler
 from async_task_queue.task.model import Task
 
@@ -13,70 +17,94 @@ def make_task(
     )
 
 
-def test_scheduler_starts_empty() -> None:
+@pytest.mark.asyncio
+async def test_scheduler_starts_empty() -> None:
     scheduler = TaskScheduler()
 
     assert scheduler.empty()
     assert len(scheduler) == 0
 
 
-def test_scheduler_orders_by_priority() -> None:
+@pytest.mark.asyncio
+async def test_scheduler_orders_by_priority() -> None:
     scheduler = TaskScheduler()
 
     low = make_task("low", priority=5)
     high = make_task("high", priority=0)
     medium = make_task("medium", priority=2)
 
-    scheduler.add(low)
-    scheduler.add(high)
-    scheduler.add(medium)
+    await scheduler.add(low)
+    await scheduler.add(high)
+    await scheduler.add(medium)
 
-    assert scheduler.get_next() is high
-    assert scheduler.get_next() is medium
-    assert scheduler.get_next() is low
+    assert await scheduler.get_next() is high
+    assert await scheduler.get_next() is medium
+    assert await scheduler.get_next() is low
 
 
-def test_scheduler_preserves_fifo_for_equal_priority() -> None:
+@pytest.mark.asyncio
+async def test_scheduler_preserves_fifo_for_equal_priority() -> None:
     scheduler = TaskScheduler()
 
     first = make_task("first", priority=1)
     second = make_task("second", priority=1)
     third = make_task("third", priority=1)
 
-    scheduler.add(first)
-    scheduler.add(second)
-    scheduler.add(third)
+    await scheduler.add(first)
+    await scheduler.add(second)
+    await scheduler.add(third)
 
-    assert scheduler.get_next() is first
-    assert scheduler.get_next() is second
-    assert scheduler.get_next() is third
+    assert await scheduler.get_next() is first
+    assert await scheduler.get_next() is second
+    assert await scheduler.get_next() is third
 
 
-def test_priority_takes_precedence_over_fifo() -> None:
+@pytest.mark.asyncio
+async def test_priority_takes_precedence_over_fifo() -> None:
     scheduler = TaskScheduler()
 
     first = make_task("first", priority=5)
     second = make_task("second", priority=0)
 
-    scheduler.add(first)
-    scheduler.add(second)
+    await scheduler.add(first)
+    await scheduler.add(second)
 
-    assert scheduler.get_next() is second
-    assert scheduler.get_next() is first
+    assert await scheduler.get_next() is second
+    assert await scheduler.get_next() is first
 
 
-def test_length_decreases_when_tasks_are_removed() -> None:
+@pytest.mark.asyncio
+async def test_length_decreases_when_tasks_are_removed() -> None:
     scheduler = TaskScheduler()
 
-    scheduler.add(make_task("one", priority=1))
-    scheduler.add(make_task("two", priority=2))
+    await scheduler.add(make_task("one", priority=1))
+    await scheduler.add(make_task("two", priority=2))
 
     assert len(scheduler) == 2
 
-    scheduler.get_next()
+    await scheduler.get_next()
 
     assert len(scheduler) == 1
 
-    scheduler.get_next()
+    await scheduler.get_next()
 
     assert scheduler.empty()
+
+
+@pytest.mark.asyncio
+async def test_get_next_waits_until_task_is_added() -> None:
+    scheduler = TaskScheduler()
+
+    task = make_task("delayed", priority=1)
+
+    async def add_later() -> None:
+        await asyncio.sleep(0.01)
+        await scheduler.add(task)
+
+    producer = asyncio.create_task(add_later())
+
+    result = await scheduler.get_next()
+
+    await producer
+
+    assert result is task
