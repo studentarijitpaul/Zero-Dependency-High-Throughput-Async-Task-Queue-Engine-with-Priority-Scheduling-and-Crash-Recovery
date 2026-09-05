@@ -4,7 +4,10 @@ from uuid import uuid4
 
 import pytest
 
-from async_task_queue.exceptions import TaskNotFoundError
+from async_task_queue.exceptions import (
+    TaskCancellationError,
+    TaskNotFoundError,
+)
 from async_task_queue.persistence.json_store import JSONTaskStore
 from async_task_queue.queue.queue import TaskQueue
 from async_task_queue.retry.policy import RetryPolicy
@@ -118,7 +121,10 @@ async def test_submit_requires_registered_handler() -> None:
     queue = TaskQueue(registry)
 
     with pytest.raises(TaskNotFoundError):
-        await queue.submit("missing_task", {})
+        await queue.submit(
+            "missing_task",
+            {},
+        )
 
 
 def test_get_missing_task_raises() -> None:
@@ -133,7 +139,10 @@ def test_invalid_worker_count() -> None:
     registry = TaskRegistry()
 
     with pytest.raises(ValueError):
-        TaskQueue(registry, worker_count=0)
+        TaskQueue(
+            registry,
+            worker_count=0,
+        )
 
 
 @pytest.mark.asyncio
@@ -195,8 +204,14 @@ async def test_queue_supports_multiple_workers() -> None:
 
     await queue.start()
 
-    await queue.submit("test_task", {})
-    await queue.submit("test_task", {})
+    await queue.submit(
+        "test_task",
+        {},
+    )
+    await queue.submit(
+        "test_task",
+        {},
+    )
 
     await asyncio.wait_for(
         all_started.wait(),
@@ -246,7 +261,9 @@ async def test_queue_retries_failed_task() -> None:
         attempts += 1
 
         if attempts == 1:
-            raise TimeoutError("temporary failure")
+            raise TimeoutError(
+                "temporary failure"
+            )
 
     registry.register("test_task", handler)
 
@@ -256,7 +273,9 @@ async def test_queue_retries_failed_task() -> None:
             max_retries=1,
             base_delay=0.01,
             max_delay=0.01,
-            retryable_exceptions=(TimeoutError,),
+            retryable_exceptions=(
+                TimeoutError,
+            ),
         ),
     )
 
@@ -443,6 +462,7 @@ async def test_queue_ignores_completed_tasks_on_recovery(
     tmp_path: Path,
 ) -> None:
     registry = TaskRegistry()
+
     executed = False
 
     async def handler(payload: dict[str, object]) -> None:
@@ -473,6 +493,326 @@ async def test_queue_ignores_completed_tasks_on_recovery(
     await asyncio.sleep(0.05)
 
     assert executed is False
-    assert queue.get(task.id).status == TaskStatus.COMPLETED
+    assert (
+        queue.get(task.id).status
+        == TaskStatus.COMPLETED
+    )
+
+    await queue.stop()
+
+
+@pytest.mark.asyncio
+async def test_cancel_pending_task() -> None:
+    registry = TaskRegistry()
+
+    started = asyncio.Event()
+
+    async def handler(payload: dict[str, object]) -> None:
+        started.set()
+
+    registry.register("test_task", handler)
+
+    queue = TaskQueue(registry)
+
+    await queue.start()
+
+    first_id = await queue.submit(
+        "test_task",
+        {},
+    )
+
+    second_id = await queue.submit(
+        "test_task",
+        {},
+    )
+
+    await queue.cancel(second_id)
+
+    assert (
+        queue.get(second_id).status
+        == TaskStatus.CANCELLED
+    )
+
+    await queue.wait(first_id)
+
+    await asyncio.sleep(0.02)
+
+    assert started.is_set()
+    assert (
+        queue.get(second_id).status
+        == TaskStatus.CANCELLED
+    )
+
+    await queue.stop()
+
+
+@pytest.mark.asyncio
+async def test_cancel_running_task() -> None:
+    registry = TaskRegistry()
+
+    started = asyncio.Event()
+    cancelled = asyncio.Event()
+
+    async def handler(payload: dict[str, object]) -> None:
+        started.set()
+
+        try:
+            await asyncio.sleep(10)
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    registry.register("test_task", handler)
+
+    queue = TaskQueue(registry)
+
+    await queue.start()
+
+    task_id = await queue.submit(
+        "test_task",
+        {},
+    )
+
+    await asyncio.wait_for(
+        started.wait(),
+        timeout=1.0,
+    )
+
+    await queue.cancel(task_id)
+
+    task = queue.get(task_id)
+
+    assert cancelled.is_set()
+    assert task.status == TaskStatus.CANCELLED
+
+    await queue.stop()
+
+
+@pytest.mark.asyncio
+async def test_cancel_completed_task_fails() -> None:
+    registry = TaskRegistry()
+
+    async def handler(payload: dict[str, object]) -> None:
+        pass
+
+    registry.register("test_task", handler)
+
+    queue = TaskQueue(registry)
+
+    await queue.start()
+
+    task_id = await queue.submit(
+        "test_task",
+        {},
+    )
+
+    await queue.wait(task_id)
+
+    with pytest.raises(
+        TaskCancellationError,
+        match="cannot be cancelled",
+    ):
+        await queue.cancel(task_id)
+
+    await queue.stop()
+
+
+@pytest.mark.asyncio
+async def test_stop_stops_accepting_tasks() -> None:
+    registry = TaskRegistry()
+
+    async def handler(payload: dict[str, object]) -> None:
+        pass
+
+    registry.register("test_task", handler)
+
+    queue = TaskQueue(registry)
+
+    await queue.start()
+    await queue.stop()
+
+    assert queue.started is False
+    assert queue.accepting_tasks is False
+
+    with pytest.raises(
+        RuntimeError,
+        match="not accepting tasks",
+    ):
+        await queue.submit(
+            "test_task",
+            {},
+        )
+
+
+@pytest.mark.asyncio
+async def test_stop_allows_running_task_to_finish() -> None:
+    registry = TaskRegistry()
+
+    started = asyncio.Event()
+    finished = asyncio.Event()
+
+    async def handler(payload: dict[str, object]) -> None:
+        started.set()
+        await asyncio.sleep(0.05)
+        finished.set()
+
+    registry.register("test_task", handler)
+
+    queue = TaskQueue(registry)
+
+    await queue.start()
+
+    task_id = await queue.submit(
+        "test_task",
+        {},
+    )
+
+    await asyncio.wait_for(
+        started.wait(),
+        timeout=1.0,
+    )
+
+    await queue.stop()
+
+    assert finished.is_set()
+    assert (
+        queue.get(task_id).status
+        == TaskStatus.COMPLETED
+    )
+
+
+@pytest.mark.asyncio
+async def test_stop_persists_pending_tasks(
+    tmp_path: Path,
+) -> None:
+    registry = TaskRegistry()
+
+    blocker_started = asyncio.Event()
+    release_blocker = asyncio.Event()
+
+    async def handler(payload: dict[str, object]) -> None:
+        if payload.get("block") is True:
+            blocker_started.set()
+            await release_blocker.wait()
+
+    registry.register("test_task", handler)
+
+    store = JSONTaskStore(
+        tmp_path / "tasks.json",
+    )
+
+    queue = TaskQueue(
+        registry,
+        store=store,
+    )
+
+    await queue.start()
+
+    blocker_id = await queue.submit(
+        "test_task",
+        {"block": True},
+    )
+
+    pending_id = await queue.submit(
+        "test_task",
+        {"block": False},
+    )
+
+    await asyncio.wait_for(
+        blocker_started.wait(),
+        timeout=1.0,
+    )
+
+    stop_task = asyncio.create_task(
+        queue.stop()
+    )
+
+    await asyncio.sleep(0.01)
+
+    assert queue.accepting_tasks is False
+
+    release_blocker.set()
+
+    await stop_task
+
+    persisted = store.load_all()
+
+    persisted_by_id = {
+        task.id: task
+        for task in persisted
+    }
+
+    assert (
+        persisted_by_id[blocker_id].status
+        == TaskStatus.COMPLETED
+    )
+
+    assert (
+        persisted_by_id[pending_id].status
+        == TaskStatus.PENDING
+    )
+
+
+@pytest.mark.asyncio
+async def test_cancelling_running_task_does_not_kill_worker() -> None:
+    registry = TaskRegistry()
+
+    started = asyncio.Event()
+    cancelled = asyncio.Event()
+    second_completed = asyncio.Event()
+
+    async def handler(payload: dict[str, object]) -> None:
+        if payload["name"] == "first":
+            started.set()
+
+            try:
+                await asyncio.sleep(10)
+            except asyncio.CancelledError:
+                cancelled.set()
+                raise
+        else:
+            second_completed.set()
+
+    registry.register("test_task", handler)
+
+    queue = TaskQueue(
+        registry,
+        worker_count=1,
+    )
+
+    await queue.start()
+
+    first_id = await queue.submit(
+        "test_task",
+        {"name": "first"},
+    )
+
+    await asyncio.wait_for(
+        started.wait(),
+        timeout=1.0,
+    )
+
+    await queue.cancel(first_id)
+
+    assert cancelled.is_set()
+    assert (
+        queue.get(first_id).status
+        == TaskStatus.CANCELLED
+    )
+
+    second_id = await queue.submit(
+        "test_task",
+        {"name": "second"},
+    )
+
+    await asyncio.wait_for(
+        second_completed.wait(),
+        timeout=1.0,
+    )
+
+    assert (
+        queue.get(second_id).status
+        == TaskStatus.COMPLETED
+    )
 
     await queue.stop()
