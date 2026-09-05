@@ -1,3 +1,6 @@
+import asyncio
+from datetime import datetime, timezone
+
 import pytest
 
 from async_task_queue.retry.policy import RetryPolicy
@@ -166,3 +169,94 @@ async def test_worker_fails_non_retryable_exception() -> None:
 
     assert task.status == TaskStatus.FAILED
     assert task.retry_count == 0
+
+
+@pytest.mark.asyncio
+async def test_worker_sets_next_retry_at() -> None:
+    registry = TaskRegistry()
+
+    async def handler(payload: dict[str, object]) -> None:
+        raise TimeoutError("temporary failure")
+
+    registry.register("test_task", handler)
+
+    task = Task(
+        task_name="test_task",
+        payload={},
+    )
+
+    policy = RetryPolicy(
+        max_retries=3,
+        base_delay=10.0,
+        max_delay=30.0,
+        retryable_exceptions=(TimeoutError,),
+    )
+
+    before = datetime.now(timezone.utc)
+
+    worker = Worker(registry, policy)
+
+    await worker.execute(task)
+
+    after = datetime.now(timezone.utc)
+
+    assert task.next_retry_at is not None
+
+    expected_min = before.timestamp() + 10
+    expected_max = after.timestamp() + 10
+
+    assert expected_min <= task.next_retry_at.timestamp() <= expected_max
+
+
+@pytest.mark.asyncio
+async def test_worker_cancels_task() -> None:
+    registry = TaskRegistry()
+
+    async def handler(payload: dict[str, object]) -> None:
+        raise asyncio.CancelledError
+
+    registry.register("test_task", handler)
+
+    task = Task(
+        task_name="test_task",
+        payload={},
+    )
+
+    policy = RetryPolicy(
+        max_retries=3,
+        retryable_exceptions=(Exception,),
+    )
+
+    worker = Worker(registry, policy)
+
+    with pytest.raises(asyncio.CancelledError):
+        await worker.execute(task)
+
+    assert task.status == TaskStatus.CANCELLED
+    assert task.retry_count == 0
+
+
+@pytest.mark.asyncio
+async def test_worker_clears_next_retry_at_on_success() -> None:
+    registry = TaskRegistry()
+
+    async def handler(payload: dict[str, object]) -> None:
+        return
+
+    registry.register("test_task", handler)
+
+    task = Task(
+        task_name="test_task",
+        payload={},
+        next_retry_at=datetime.now(timezone.utc),
+    )
+
+    worker = Worker(
+        registry,
+        RetryPolicy(),
+    )
+
+    await worker.execute(task)
+
+    assert task.status == TaskStatus.COMPLETED
+    assert task.next_retry_at is None
