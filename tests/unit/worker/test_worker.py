@@ -80,7 +80,10 @@ async def test_worker_propagates_handler_exception() -> None:
         RetryPolicy(),
     )
 
-    with pytest.raises(ValueError, match="something went wrong"):
+    with pytest.raises(
+        ValueError,
+        match="something went wrong",
+    ):
         await worker.execute(task)
 
     assert task.status == TaskStatus.FAILED
@@ -98,10 +101,10 @@ async def test_worker_moves_failed_task_to_retry_wait() -> None:
     task = Task(
         task_name="test_task",
         payload={},
+        max_retries=3,
     )
 
     policy = RetryPolicy(
-        max_retries=3,
         retryable_exceptions=(TimeoutError,),
     )
 
@@ -130,13 +133,15 @@ async def test_worker_marks_task_failed_when_retries_exhausted() -> None:
     )
 
     policy = RetryPolicy(
-        max_retries=1,
         retryable_exceptions=(TimeoutError,),
     )
 
     worker = Worker(registry, policy)
 
-    with pytest.raises(TimeoutError):
+    with pytest.raises(
+        TimeoutError,
+        match="failure",
+    ):
         await worker.execute(task)
 
     assert task.status == TaskStatus.FAILED
@@ -155,16 +160,19 @@ async def test_worker_fails_non_retryable_exception() -> None:
     task = Task(
         task_name="test_task",
         payload={},
+        max_retries=3,
     )
 
     policy = RetryPolicy(
-        max_retries=3,
         retryable_exceptions=(TimeoutError,),
     )
 
     worker = Worker(registry, policy)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError,
+        match="permanent failure",
+    ):
         await worker.execute(task)
 
     assert task.status == TaskStatus.FAILED
@@ -183,10 +191,10 @@ async def test_worker_sets_next_retry_at() -> None:
     task = Task(
         task_name="test_task",
         payload={},
+        max_retries=3,
     )
 
     policy = RetryPolicy(
-        max_retries=3,
         base_delay=10.0,
         max_delay=30.0,
         retryable_exceptions=(TimeoutError,),
@@ -205,7 +213,11 @@ async def test_worker_sets_next_retry_at() -> None:
     expected_min = before.timestamp() + 10
     expected_max = after.timestamp() + 10
 
-    assert expected_min <= task.next_retry_at.timestamp() <= expected_max
+    assert (
+        expected_min
+        <= task.next_retry_at.timestamp()
+        <= expected_max
+    )
 
 
 @pytest.mark.asyncio
@@ -220,10 +232,10 @@ async def test_worker_cancels_task() -> None:
     task = Task(
         task_name="test_task",
         payload={},
+        max_retries=3,
     )
 
     policy = RetryPolicy(
-        max_retries=3,
         retryable_exceptions=(Exception,),
     )
 
@@ -260,3 +272,81 @@ async def test_worker_clears_next_retry_at_on_success() -> None:
 
     assert task.status == TaskStatus.COMPLETED
     assert task.next_retry_at is None
+
+
+@pytest.mark.asyncio
+async def test_worker_respects_task_max_retries() -> None:
+    registry = TaskRegistry()
+
+    async def handler(payload: dict[str, object]) -> None:
+        raise TimeoutError("temporary failure")
+
+    registry.register("test_task", handler)
+
+    task = Task(
+        task_name="test_task",
+        payload={},
+        max_retries=2,
+    )
+
+    worker = Worker(
+        registry,
+        RetryPolicy(
+            retryable_exceptions=(TimeoutError,),
+        ),
+    )
+
+    await worker.execute(task)
+
+    assert task.status == TaskStatus.RETRY_WAIT
+    assert task.retry_count == 1
+
+    task.transition_to(TaskStatus.PENDING)
+
+    await worker.execute(task)
+
+    assert task.status == TaskStatus.RETRY_WAIT
+    assert task.retry_count == 2
+
+    task.transition_to(TaskStatus.PENDING)
+
+    with pytest.raises(
+        TimeoutError,
+        match="temporary failure",
+    ):
+        await worker.execute(task)
+
+    assert task.status == TaskStatus.FAILED
+    assert task.retry_count == 2
+
+
+@pytest.mark.asyncio
+async def test_worker_does_not_retry_when_task_has_zero_retries() -> None:
+    registry = TaskRegistry()
+
+    async def handler(payload: dict[str, object]) -> None:
+        raise TimeoutError("temporary failure")
+
+    registry.register("test_task", handler)
+
+    task = Task(
+        task_name="test_task",
+        payload={},
+        max_retries=0,
+    )
+
+    worker = Worker(
+        registry,
+        RetryPolicy(
+            retryable_exceptions=(TimeoutError,),
+        ),
+    )
+
+    with pytest.raises(
+        TimeoutError,
+        match="temporary failure",
+    ):
+        await worker.execute(task)
+
+    assert task.status == TaskStatus.FAILED
+    assert task.retry_count == 0

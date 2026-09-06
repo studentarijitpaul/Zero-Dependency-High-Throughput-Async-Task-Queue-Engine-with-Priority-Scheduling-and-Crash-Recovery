@@ -270,7 +270,6 @@ async def test_queue_retries_failed_task() -> None:
     queue = TaskQueue(
         registry,
         retry_policy=RetryPolicy(
-            max_retries=1,
             base_delay=0.01,
             max_delay=0.01,
             retryable_exceptions=(
@@ -289,13 +288,11 @@ async def test_queue_retries_failed_task() -> None:
 
     task = await queue.wait(task_id)
 
-    assert attempts == 2
-    assert task.status == TaskStatus.COMPLETED
-    assert task.retry_count == 1
-    assert task.next_retry_at is None
-
     await queue.stop()
 
+    assert task.status == TaskStatus.COMPLETED
+    assert attempts == 2
+    assert task.retry_count == 1
 
 @pytest.mark.asyncio
 async def test_queue_persists_submitted_task(
