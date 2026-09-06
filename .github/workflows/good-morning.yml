@@ -1,0 +1,31 @@
+name: Good Morning Email
+
+on:
+  workflow_dispatch:
+
+jobs:
+  send-email:
+    name: Send Good Morning Email
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install package
+        run: python -m pip install .
+
+      - name: Send Good Morning Email
+        env:
+          EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
+          EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
+        run: |
+          python examples/send_email_test.py
