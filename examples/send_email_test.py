@@ -30,10 +30,7 @@ async def send_email(payload: dict[str, object]) -> None:
         print(f"Email sent successfully to {payload['to']}.")
 
     except Exception as exception:
-        print(
-            f"Email sending failed: "
-            f"{type(exception).__name__}: {exception}"
-        )
+        print(f"Email sending failed: {type(exception).__name__}: {exception}")
         raise
 
 
