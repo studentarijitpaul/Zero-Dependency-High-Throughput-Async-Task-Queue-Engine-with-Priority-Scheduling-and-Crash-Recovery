@@ -71,18 +71,12 @@ async def test_multiple_tasks_are_executed() -> None:
         for value in range(5)
     ]
 
-    tasks = [
-        await queue.wait(task_id)
-        for task_id in task_ids
-    ]
+    tasks = [await queue.wait(task_id) for task_id in task_ids]
 
     await queue.stop()
 
     assert len(executed) == 5
-    assert all(
-        task.status == TaskStatus.COMPLETED
-        for task in tasks
-    )
+    assert all(task.status == TaskStatus.COMPLETED for task in tasks)
     assert sorted(executed) == [0, 1, 2, 3, 4]
 
 

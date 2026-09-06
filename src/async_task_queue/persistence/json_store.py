@@ -38,50 +38,34 @@ class JSONTaskStore:
             with self._path.open("r", encoding="utf-8") as file:
                 data = json.load(file)
         except (OSError, json.JSONDecodeError) as exc:
-            raise PersistenceError(
-                f"Failed to read task store: {self._path}"
-            ) from exc
+            raise PersistenceError(f"Failed to read task store: {self._path}") from exc
 
         if not isinstance(data, dict):
             raise PersistenceError("Task store root must be an object.")
 
         if data.get("version") != self._VERSION:
             raise PersistenceError(
-                f"Unsupported task store version: "
-                f"{data.get('version')!r}"
+                f"Unsupported task store version: {data.get('version')!r}"
             )
 
         tasks_data = data.get("tasks")
 
         if not isinstance(tasks_data, list):
-            raise PersistenceError(
-                "Task store 'tasks' must be a list."
-            )
+            raise PersistenceError("Task store 'tasks' must be a list.")
 
         try:
-            return [
-                TaskSerializer.deserialize(task_data)
-                for task_data in tasks_data
-            ]
+            return [TaskSerializer.deserialize(task_data) for task_data in tasks_data]
         except (KeyError, TypeError, ValueError) as exc:
-            raise PersistenceError(
-                "Task store contains invalid task data."
-            ) from exc
+            raise PersistenceError("Task store contains invalid task data.") from exc
 
     def delete(self, task_id: str) -> None:
         """Delete a task from the store."""
         try:
             parsed_id = UUID(task_id)
         except ValueError as exc:
-            raise PersistenceError(
-                f"Invalid task ID: {task_id!r}"
-            ) from exc
+            raise PersistenceError(f"Invalid task ID: {task_id!r}") from exc
 
-        tasks = [
-            task
-            for task in self.load_all()
-            if task.id != parsed_id
-        ]
+        tasks = [task for task in self.load_all() if task.id != parsed_id]
 
         self._write(tasks)
 
@@ -94,15 +78,10 @@ class JSONTaskStore:
 
         data = {
             "version": self._VERSION,
-            "tasks": [
-                TaskSerializer.serialize(task)
-                for task in tasks
-            ],
+            "tasks": [TaskSerializer.serialize(task) for task in tasks],
         }
 
-        temporary_path = self._path.with_suffix(
-            self._path.suffix + ".tmp"
-        )
+        temporary_path = self._path.with_suffix(self._path.suffix + ".tmp")
 
         try:
             with temporary_path.open(
@@ -120,9 +99,7 @@ class JSONTaskStore:
             os.replace(temporary_path, self._path)
 
         except OSError as exc:
-            raise PersistenceError(
-                f"Failed to write task store: {self._path}"
-            ) from exc
+            raise PersistenceError(f"Failed to write task store: {self._path}") from exc
 
         finally:
             if temporary_path.exists():

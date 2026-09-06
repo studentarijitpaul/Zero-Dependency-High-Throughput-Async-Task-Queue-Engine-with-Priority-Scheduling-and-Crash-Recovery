@@ -75,12 +75,8 @@ async def test_priority_takes_precedence_over_fifo() -> None:
 async def test_length_decreases_when_tasks_are_removed() -> None:
     scheduler = TaskScheduler()
 
-    await scheduler.add(
-        make_task("one", priority=1)
-    )
-    await scheduler.add(
-        make_task("two", priority=2)
-    )
+    await scheduler.add(make_task("one", priority=1))
+    await scheduler.add(make_task("two", priority=2))
 
     assert len(scheduler) == 2
 
@@ -138,9 +134,7 @@ async def test_cancelled_task_is_skipped() -> None:
 async def test_close_wakes_waiting_worker() -> None:
     scheduler = TaskScheduler()
 
-    worker = asyncio.create_task(
-        scheduler.get_next()
-    )
+    worker = asyncio.create_task(scheduler.get_next())
 
     await asyncio.sleep(0)
 
@@ -165,6 +159,4 @@ async def test_add_after_close_fails() -> None:
         RuntimeError,
         match="Scheduler is closed",
     ):
-        await scheduler.add(
-            make_task("test", priority=0)
-        )
+        await scheduler.add(make_task("test", priority=0))

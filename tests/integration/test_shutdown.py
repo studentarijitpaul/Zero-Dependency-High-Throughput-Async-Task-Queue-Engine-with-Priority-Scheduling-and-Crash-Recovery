@@ -39,9 +39,7 @@ async def test_shutdown_allows_running_task_to_finish() -> None:
         timeout=1.0,
     )
 
-    stop_task = asyncio.create_task(
-        queue.stop()
-    )
+    stop_task = asyncio.create_task(queue.stop())
 
     await asyncio.sleep(0.01)
 
@@ -101,9 +99,7 @@ async def test_shutdown_preserves_pending_tasks(
         timeout=1.0,
     )
 
-    stop_task = asyncio.create_task(
-        queue.stop()
-    )
+    stop_task = asyncio.create_task(queue.stop())
 
     await asyncio.sleep(0.01)
 
@@ -113,20 +109,11 @@ async def test_shutdown_preserves_pending_tasks(
 
     persisted = store.load_all()
 
-    persisted_by_id = {
-        task.id: task
-        for task in persisted
-    }
+    persisted_by_id = {task.id: task for task in persisted}
 
-    assert (
-        persisted_by_id[running_id].status
-        == TaskStatus.COMPLETED
-    )
+    assert persisted_by_id[running_id].status == TaskStatus.COMPLETED
 
-    assert (
-        persisted_by_id[pending_id].status
-        == TaskStatus.PENDING
-    )
+    assert persisted_by_id[pending_id].status == TaskStatus.PENDING
 
 
 @pytest.mark.asyncio
@@ -142,9 +129,7 @@ async def test_shutdown_rejects_new_tasks() -> None:
 
     await queue.start()
 
-    stop_task = asyncio.create_task(
-        queue.stop()
-    )
+    stop_task = asyncio.create_task(queue.stop())
 
     await asyncio.sleep(0)
 

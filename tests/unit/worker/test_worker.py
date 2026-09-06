@@ -213,11 +213,7 @@ async def test_worker_sets_next_retry_at() -> None:
     expected_min = before.timestamp() + 10
     expected_max = after.timestamp() + 10
 
-    assert (
-        expected_min
-        <= task.next_retry_at.timestamp()
-        <= expected_max
-    )
+    assert expected_min <= task.next_retry_at.timestamp() <= expected_max
 
 
 @pytest.mark.asyncio

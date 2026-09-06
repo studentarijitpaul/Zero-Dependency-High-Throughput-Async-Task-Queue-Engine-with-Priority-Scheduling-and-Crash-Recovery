@@ -261,9 +261,7 @@ async def test_queue_retries_failed_task() -> None:
         attempts += 1
 
         if attempts == 1:
-            raise TimeoutError(
-                "temporary failure"
-            )
+            raise TimeoutError("temporary failure")
 
     registry.register("test_task", handler)
 
@@ -272,9 +270,7 @@ async def test_queue_retries_failed_task() -> None:
         retry_policy=RetryPolicy(
             base_delay=0.01,
             max_delay=0.01,
-            retryable_exceptions=(
-                TimeoutError,
-            ),
+            retryable_exceptions=(TimeoutError,),
         ),
     )
 
@@ -293,6 +289,7 @@ async def test_queue_retries_failed_task() -> None:
     assert task.status == TaskStatus.COMPLETED
     assert attempts == 2
     assert task.retry_count == 1
+
 
 @pytest.mark.asyncio
 async def test_queue_persists_submitted_task(
@@ -490,10 +487,7 @@ async def test_queue_ignores_completed_tasks_on_recovery(
     await asyncio.sleep(0.05)
 
     assert executed is False
-    assert (
-        queue.get(task.id).status
-        == TaskStatus.COMPLETED
-    )
+    assert queue.get(task.id).status == TaskStatus.COMPLETED
 
     await queue.stop()
 
@@ -525,20 +519,14 @@ async def test_cancel_pending_task() -> None:
 
     await queue.cancel(second_id)
 
-    assert (
-        queue.get(second_id).status
-        == TaskStatus.CANCELLED
-    )
+    assert queue.get(second_id).status == TaskStatus.CANCELLED
 
     await queue.wait(first_id)
 
     await asyncio.sleep(0.02)
 
     assert started.is_set()
-    assert (
-        queue.get(second_id).status
-        == TaskStatus.CANCELLED
-    )
+    assert queue.get(second_id).status == TaskStatus.CANCELLED
 
     await queue.stop()
 
@@ -672,10 +660,7 @@ async def test_stop_allows_running_task_to_finish() -> None:
     await queue.stop()
 
     assert finished.is_set()
-    assert (
-        queue.get(task_id).status
-        == TaskStatus.COMPLETED
-    )
+    assert queue.get(task_id).status == TaskStatus.COMPLETED
 
 
 @pytest.mark.asyncio
@@ -720,9 +705,7 @@ async def test_stop_persists_pending_tasks(
         timeout=1.0,
     )
 
-    stop_task = asyncio.create_task(
-        queue.stop()
-    )
+    stop_task = asyncio.create_task(queue.stop())
 
     await asyncio.sleep(0.01)
 
@@ -734,20 +717,11 @@ async def test_stop_persists_pending_tasks(
 
     persisted = store.load_all()
 
-    persisted_by_id = {
-        task.id: task
-        for task in persisted
-    }
+    persisted_by_id = {task.id: task for task in persisted}
 
-    assert (
-        persisted_by_id[blocker_id].status
-        == TaskStatus.COMPLETED
-    )
+    assert persisted_by_id[blocker_id].status == TaskStatus.COMPLETED
 
-    assert (
-        persisted_by_id[pending_id].status
-        == TaskStatus.PENDING
-    )
+    assert persisted_by_id[pending_id].status == TaskStatus.PENDING
 
 
 @pytest.mark.asyncio
@@ -792,10 +766,7 @@ async def test_cancelling_running_task_does_not_kill_worker() -> None:
     await queue.cancel(first_id)
 
     assert cancelled.is_set()
-    assert (
-        queue.get(first_id).status
-        == TaskStatus.CANCELLED
-    )
+    assert queue.get(first_id).status == TaskStatus.CANCELLED
 
     second_id = await queue.submit(
         "test_task",
@@ -807,9 +778,6 @@ async def test_cancelling_running_task_does_not_kill_worker() -> None:
         timeout=1.0,
     )
 
-    assert (
-        queue.get(second_id).status
-        == TaskStatus.COMPLETED
-    )
+    assert queue.get(second_id).status == TaskStatus.COMPLETED
 
     await queue.stop()

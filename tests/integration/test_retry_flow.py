@@ -1,5 +1,3 @@
-import asyncio
-
 import pytest
 
 from async_task_queue.queue.queue import TaskQueue

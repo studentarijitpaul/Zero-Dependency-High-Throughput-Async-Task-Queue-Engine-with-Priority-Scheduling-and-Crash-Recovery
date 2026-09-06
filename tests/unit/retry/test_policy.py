@@ -27,9 +27,7 @@ def test_should_not_retry_non_retryable_exception() -> None:
         retryable_exceptions=(TimeoutError,),
     )
 
-    assert policy.should_retry(
-        ValueError("permanent")
-    ) is False
+    assert policy.should_retry(ValueError("permanent")) is False
 
 
 def test_should_retry_does_not_consider_retry_count() -> None:
@@ -75,10 +73,7 @@ def test_jitter_changes_delay() -> None:
         jitter=True,
     )
 
-    delays = {
-        policy.get_delay(2)
-        for _ in range(20)
-    }
+    delays = {policy.get_delay(2) for _ in range(20)}
 
     assert all(0.0 <= delay <= 20.0 for delay in delays)
 

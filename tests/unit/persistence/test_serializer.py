@@ -92,9 +92,7 @@ def test_serialize_deserialize_round_trip() -> None:
         retry_count=1,
     )
 
-    restored = TaskSerializer.deserialize(
-        TaskSerializer.serialize(task)
-    )
+    restored = TaskSerializer.deserialize(TaskSerializer.serialize(task))
 
     assert restored.id == task.id
     assert restored.task_name == task.task_name

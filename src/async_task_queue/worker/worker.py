@@ -57,13 +57,8 @@ class Worker:
         """Move a failed task into retry-wait state."""
         task.increment_retry_count()
 
-        delay = self._retry_policy.get_delay(
-            task.retry_count
-        )
+        delay = self._retry_policy.get_delay(task.retry_count)
 
-        task.next_retry_at = (
-            datetime.now(timezone.utc)
-            + timedelta(seconds=delay)
-        )
+        task.next_retry_at = datetime.now(timezone.utc) + timedelta(seconds=delay)
 
         task.transition_to(TaskStatus.RETRY_WAIT)

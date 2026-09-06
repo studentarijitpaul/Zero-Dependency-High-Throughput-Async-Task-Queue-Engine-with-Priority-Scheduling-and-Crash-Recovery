@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 PROJECT_ROOT = Path(__file__).parent
 
 
@@ -31,32 +30,26 @@ FILES = [
     "src/async_task_queue/exceptions.py",
     "src/async_task_queue/protocols.py",
     "src/async_task_queue/types.py",
-
     # Task
     "src/async_task_queue/task/__init__.py",
     "src/async_task_queue/task/model.py",
     "src/async_task_queue/task/state.py",
     "src/async_task_queue/task/registry.py",
-
     # Queue
     "src/async_task_queue/queue/__init__.py",
     "src/async_task_queue/queue/queue.py",
     "src/async_task_queue/queue/scheduler.py",
-
     # Worker
     "src/async_task_queue/worker/__init__.py",
     "src/async_task_queue/worker/worker.py",
-
     # Retry
     "src/async_task_queue/retry/__init__.py",
     "src/async_task_queue/retry/policy.py",
-
     # Persistence
     "src/async_task_queue/persistence/__init__.py",
     "src/async_task_queue/persistence/protocol.py",
     "src/async_task_queue/persistence/serializer.py",
     "src/async_task_queue/persistence/json_store.py",
-
     # Unit tests
     "tests/unit/task/test_model.py",
     "tests/unit/task/test_state.py",
@@ -67,34 +60,28 @@ FILES = [
     "tests/unit/retry/test_policy.py",
     "tests/unit/persistence/test_serializer.py",
     "tests/unit/persistence/test_json_store.py",
-
     # Integration tests
     "tests/integration/test_queue_execution.py",
     "tests/integration/test_retry_flow.py",
     "tests/integration/test_persistence_flow.py",
     "tests/integration/test_recovery.py",
     "tests/integration/test_shutdown.py",
-
     # Test configuration
     "tests/conftest.py",
-
     # Examples
     "examples/basic_queue.py",
     "examples/priorities.py",
     "examples/retries.py",
     "examples/persistence.py",
-
     # Documentation
     "docs/architecture.md",
     "docs/task-lifecycle.md",
     "docs/concurrency.md",
     "docs/persistence.md",
     "docs/design-decisions.md",
-
     # GitHub Actions
     ".github/workflows/ci.yml",
     ".github/workflows/release.yml",
-
     # Root files
     ".gitignore",
     "LICENSE",

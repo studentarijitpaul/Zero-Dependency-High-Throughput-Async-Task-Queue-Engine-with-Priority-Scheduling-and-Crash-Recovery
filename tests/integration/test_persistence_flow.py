@@ -113,11 +113,7 @@ async def test_retry_state_is_persisted(
 
     persisted = store.load_all()
 
-    persisted_task = next(
-        task
-        for task in persisted
-        if task.id == task_id
-    )
+    persisted_task = next(task for task in persisted if task.id == task_id)
 
     assert persisted_task.id == task_id
     assert persisted_task.task_name == "test_task"
@@ -160,15 +156,9 @@ async def test_queue_and_store_remain_consistent(
 
     persisted = store.load_all()
 
-    persisted_by_id = {
-        task.id: task
-        for task in persisted
-    }
+    persisted_by_id = {task.id: task for task in persisted}
 
     assert set(persisted_by_id) == set(task_ids)
 
     for task_id in task_ids:
-        assert (
-            persisted_by_id[task_id].status
-            == TaskStatus.COMPLETED
-        )
+        assert persisted_by_id[task_id].status == TaskStatus.COMPLETED

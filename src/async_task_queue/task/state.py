@@ -56,6 +56,5 @@ def validate_transition(
     """Raise an error if a state transition is not allowed."""
     if not can_transition(current, target):
         raise InvalidTaskStateError(
-            f"Invalid task state transition: "
-            f"{current.value} -> {target.value}"
+            f"Invalid task state transition: {current.value} -> {target.value}"
         )

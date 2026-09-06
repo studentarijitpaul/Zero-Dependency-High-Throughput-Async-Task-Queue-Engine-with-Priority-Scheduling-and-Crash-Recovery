@@ -62,8 +62,7 @@ class TaskQueue:
         await self._recover_tasks()
 
         self._worker_tasks = [
-            asyncio.create_task(self._worker_loop())
-            for _ in range(self._worker_count)
+            asyncio.create_task(self._worker_loop()) for _ in range(self._worker_count)
         ]
 
         await self._schedule_recovered_tasks()
@@ -128,16 +127,12 @@ class TaskQueue:
     ) -> UUID:
         """Submit a new task for execution."""
         if not self._accepting_tasks:
-            raise RuntimeError(
-                "Task queue is not accepting tasks"
-            )
+            raise RuntimeError("Task queue is not accepting tasks")
 
         self._registry.get(task_name)
 
         if max_retries < 0:
-            raise ValueError(
-                "max_retries must be >= 0"
-            )
+            raise ValueError("max_retries must be >= 0")
 
         task = Task(
             task_name=task_name,
@@ -201,8 +196,7 @@ class TaskQueue:
 
             if execution is None:
                 raise TaskCancellationError(
-                    f"Task {task.id} is running but "
-                    "cannot be cancelled."
+                    f"Task {task.id} is running but cannot be cancelled."
                 )
 
             execution.cancel()
@@ -216,8 +210,7 @@ class TaskQueue:
             return
 
         raise TaskCancellationError(
-            f"Task {task.id} cannot be cancelled from "
-            f"state {task.status.value!r}."
+            f"Task {task.id} cannot be cancelled from state {task.status.value!r}."
         )
 
     async def _worker_loop(self) -> None:
@@ -234,9 +227,7 @@ class TaskQueue:
                 self._persist(task)
                 continue
 
-            execution = asyncio.create_task(
-                self._execute_task(task)
-            )
+            execution = asyncio.create_task(self._execute_task(task))
 
             self._running_tasks[task.id] = execution
 
@@ -258,7 +249,7 @@ class TaskQueue:
         except asyncio.CancelledError:
             self._persist(task)
             raise
-        except Exception:
+        except Exception:  # noqa: BLE001
             self._persist(task)
             return
 
@@ -269,9 +260,7 @@ class TaskQueue:
 
     def _start_retry_task(self, task: Task) -> None:
         """Start a background retry timer."""
-        retry_task = asyncio.create_task(
-            self._schedule_retry(task)
-        )
+        retry_task = asyncio.create_task(self._schedule_retry(task))
 
         self._retry_tasks[task.id] = retry_task
 
@@ -289,10 +278,7 @@ class TaskQueue:
 
         delay = max(
             0.0,
-            (
-                task.next_retry_at
-                - datetime.now(timezone.utc)
-            ).total_seconds(),
+            (task.next_retry_at - datetime.now(timezone.utc)).total_seconds(),
         )
 
         try:
@@ -342,9 +328,7 @@ class TaskQueue:
         try:
             return self._tasks[task_id]
         except KeyError as exc:
-            raise TaskNotFoundError(
-                f"Task not found: {task_id}"
-            ) from exc
+            raise TaskNotFoundError(f"Task not found: {task_id}") from exc
 
     @property
     def worker_count(self) -> int:

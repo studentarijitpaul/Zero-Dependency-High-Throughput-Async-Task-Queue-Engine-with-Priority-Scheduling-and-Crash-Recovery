@@ -47,9 +47,7 @@ class TaskScheduler:
         """Wait for and return the highest-priority task."""
         async with self._condition:
             while True:
-                await self._condition.wait_for(
-                    lambda: bool(self._heap) or self._closed
-                )
+                await self._condition.wait_for(lambda: bool(self._heap) or self._closed)
 
                 if not self._heap:
                     raise RuntimeError("Scheduler is closed")

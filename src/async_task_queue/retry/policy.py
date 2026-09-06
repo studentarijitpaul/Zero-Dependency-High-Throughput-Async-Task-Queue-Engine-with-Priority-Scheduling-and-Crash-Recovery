@@ -4,7 +4,6 @@ import random
 from dataclasses import dataclass
 from typing import TypeAlias
 
-
 ExceptionTypes: TypeAlias = tuple[type[Exception], ...]
 
 
@@ -26,9 +25,7 @@ class RetryPolicy:
             raise ValueError("max_delay must be >= 0")
 
         if self.base_delay > self.max_delay:
-            raise ValueError(
-                "base_delay must be <= max_delay"
-            )
+            raise ValueError("base_delay must be <= max_delay")
 
     def should_retry(
         self,
@@ -43,16 +40,15 @@ class RetryPolicy:
     def get_delay(self, retry_number: int) -> float:
         """Calculate the delay before a retry."""
         if retry_number < 1:
-            raise ValueError(
-                "retry_number must be >= 1"
-            )
+            raise ValueError("retry_number must be >= 1")
 
-        delay = min(
+        calculated_delay: float = min(
             self.max_delay,
             self.base_delay * (2 ** (retry_number - 1)),
         )
 
         if self.jitter:
-            delay = random.uniform(0, delay)
+            jitter: float = random.random()
+            return calculated_delay * jitter
 
-        return delay
+        return calculated_delay

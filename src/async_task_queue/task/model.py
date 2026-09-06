@@ -19,12 +19,8 @@ class Task:
     status: TaskStatus = TaskStatus.PENDING
     retry_count: int = 0
 
-    created_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
-    updated_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     next_retry_at: datetime | None = None
 
     def transition_to(self, target: TaskStatus) -> None:
