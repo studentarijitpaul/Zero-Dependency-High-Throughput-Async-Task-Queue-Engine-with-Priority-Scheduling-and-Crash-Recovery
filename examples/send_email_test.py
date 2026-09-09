@@ -65,7 +65,8 @@ async def main() -> None:
                     "opportunities. Keep pushing forward, stay focused "
                     "on your goals, and give it your best effort today. "
                     "You've got what it takes to achieve great things!\n\n"
-                    "Make today count!"
+                    "Make today count! \n"
+                    "You aren't just writing code; you are teaching the future how to reason. Every failed epoch, every vanishing gradient, and every messy dataset is just the raw material of a breakthrough."
                 ),
             },
             priority=0,
